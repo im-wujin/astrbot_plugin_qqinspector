@@ -1,0 +1,1 @@
+# 零外部依赖 — 使用 Python 内置 sqlite3 + pickle

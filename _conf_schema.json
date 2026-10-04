@@ -1,0 +1,54 @@
+{
+  "remote_info": {
+    "description": "远程信息获取",
+    "type": "object",
+    "hint": "配置远程QQ消息获取相关的监听端口和API密钥",
+    "items": {
+      "enabled": {
+        "description": "启用",
+        "type": "bool",
+        "default": false,
+        "hint": "启用远程信息获取功能"
+      },
+      "listen_port": {
+        "description": "监听端口",
+        "type": "int",
+        "default": 10086,
+        "hint": "用于接收远程QQ消息推送的HTTP服务监听端口"
+      },
+      "api_keys": {
+        "description": "API Key 配置",
+        "type": "template_list",
+        "hint": "配置用于身份识别的 API Key，每个 Key 可添加备注以便区分用途",
+        "templates": {
+          "api_key_entry": {
+            "name": "API Key",
+            "hint": "添加一个 API Key 用于接口身份验证",
+            "display_item": "remark",
+            "hide_hint_in_list": true,
+            "items": {
+              "enabled": {
+                "description": "启用",
+                "type": "bool",
+                "default": true,
+                "hint": "是否启用此 API Key"
+              },
+              "key": {
+                "description": "API Key",
+                "type": "string",
+                "hint": "用于请求身份识别的密钥",
+                "default": ""
+              },
+              "remark": {
+                "description": "备注",
+                "type": "string",
+                "hint": "用于区分不同 API Key 的备注信息",
+                "default": ""
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
