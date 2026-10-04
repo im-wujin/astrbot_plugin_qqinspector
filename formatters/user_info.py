@@ -18,7 +18,7 @@ def _f(user_info: dict, *keys, default: str = '未知') -> str:
     回退到 default，避免出现空白字段。
     """
     for key in keys:
-        v = user_info.get(key)
+        v = user_info.get(key,"未知/无")
         if isinstance(v, str) and v:
             cleaned = sanitize_text(v)
             return cleaned if cleaned else default
@@ -30,7 +30,23 @@ def _f(user_info: dict, *keys, default: str = '未知') -> str:
 def build_personal_text(user_info: dict, user_id: str,
                         last_update_str: str) -> str:
     """构造用户个人基本信息的文本"""
-    nickname = _f(user_info, 'nickname', default='未知')
+    # 清洗用户可控字段，防止合并转发因特殊字符打不开
+    _SPECIAL = '_特殊字符'
+    long_nick = _f(user_info, 'longNick', 'long_nick', default=_SPECIAL)
+    country = _f(user_info, 'country', default=_SPECIAL)
+    province = _f(user_info, 'province', default=_SPECIAL)
+    city = _f(user_info, 'city', default=_SPECIAL)
+    blood_type = _f(user_info, 'kBloodType', default=_SPECIAL)
+    home_town = _f(user_info, 'homeTown', default=_SPECIAL)
+    career = _f(user_info, 'makeFriendCareer', default=_SPECIAL)
+    pos = _f(user_info, 'pos', default=_SPECIAL)
+    college = _f(user_info, 'college', default=_SPECIAL)
+    address = _f(user_info, 'address', default=_SPECIAL)
+    interest = _f(user_info, 'interest', default=_SPECIAL)
+    e_mail = _f(user_info, 'eMail', default=_SPECIAL)
+    phone_num = _f(user_info, 'phoneNum', default=_SPECIAL)
+    status = _f(user_info, 'status', default=_SPECIAL)
+    nickname = _f(user_info, 'nickname', default=_SPECIAL)
 
     vip_time = (
         (
@@ -56,23 +72,6 @@ def build_personal_text(user_info: dict, user_id: str,
         if user_info.get('vip_level')
         else ""
     )
-
-    # 清洗用户可控字段，防止合并转发因特殊字符打不开
-    _SPECIAL = '_特殊字符'
-    long_nick = _f(user_info, 'longNick', 'long_nick', default=_SPECIAL)
-    country = _f(user_info, 'country', default=_SPECIAL)
-    province = _f(user_info, 'province', default=_SPECIAL)
-    city = _f(user_info, 'city', default=_SPECIAL)
-    blood_type = _f(user_info, 'kBloodType', default=_SPECIAL)
-    home_town = _f(user_info, 'homeTown', default=_SPECIAL)
-    career = _f(user_info, 'makeFriendCareer', default=_SPECIAL)
-    pos = _f(user_info, 'pos', default=_SPECIAL)
-    college = _f(user_info, 'college', default=_SPECIAL)
-    address = _f(user_info, 'address', default=_SPECIAL)
-    interest = _f(user_info, 'interest', default=_SPECIAL)
-    e_mail = _f(user_info, 'eMail', default=_SPECIAL)
-    phone_num = _f(user_info, 'phoneNum', default=_SPECIAL)
-    status = _f(user_info, 'status', default=_SPECIAL)
 
     labels = user_info.get('labels') or []
     cleaned_labels = [
