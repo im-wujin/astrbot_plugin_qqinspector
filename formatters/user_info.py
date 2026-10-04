@@ -58,20 +58,21 @@ def build_personal_text(user_info: dict, user_id: str,
     )
 
     # 清洗用户可控字段，防止合并转发因特殊字符打不开
-    long_nick = _f(user_info, 'longNick', 'long_nick', default='无')
-    country = _f(user_info, 'country', default='未知')
-    province = _f(user_info, 'province', default='未知')
-    city = _f(user_info, 'city', default='未知')
-    blood_type = _f(user_info, 'kBloodType', default='未知')
-    home_town = _f(user_info, 'homeTown', default='未知')
-    career = _f(user_info, 'makeFriendCareer', default='无')
-    pos = _f(user_info, 'pos', default='未知')
-    college = _f(user_info, 'college', default='无')
-    address = _f(user_info, 'address', default='未知')
-    interest = _f(user_info, 'interest', default='无')
-    e_mail = _f(user_info, 'eMail', default='未知')
-    phone_num = _f(user_info, 'phoneNum', default='未知')
-    status = _f(user_info, 'status', default='未知')
+    _SPECIAL = '_特殊字符'
+    long_nick = _f(user_info, 'longNick', 'long_nick', default=_SPECIAL)
+    country = _f(user_info, 'country', default=_SPECIAL)
+    province = _f(user_info, 'province', default=_SPECIAL)
+    city = _f(user_info, 'city', default=_SPECIAL)
+    blood_type = _f(user_info, 'kBloodType', default=_SPECIAL)
+    home_town = _f(user_info, 'homeTown', default=_SPECIAL)
+    career = _f(user_info, 'makeFriendCareer', default=_SPECIAL)
+    pos = _f(user_info, 'pos', default=_SPECIAL)
+    college = _f(user_info, 'college', default=_SPECIAL)
+    address = _f(user_info, 'address', default=_SPECIAL)
+    interest = _f(user_info, 'interest', default=_SPECIAL)
+    e_mail = _f(user_info, 'eMail', default=_SPECIAL)
+    phone_num = _f(user_info, 'phoneNum', default=_SPECIAL)
+    status = _f(user_info, 'status', default=_SPECIAL)
 
     labels = user_info.get('labels') or []
     cleaned_labels = [
