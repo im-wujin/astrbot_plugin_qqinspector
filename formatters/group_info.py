@@ -214,14 +214,18 @@ def build_group_info_nodes(
             name=f"群聊基本信息",
         ),
         Comp.Node(
-            Comp.Node(
-                uin=sender,
-                name="特殊头衔信息",
-                content=[
-                    Comp.Plain(titles_text),
-                    Comp.Plain(ratio_text),
-                ]
-            ),
+            content=[
+                Comp.Node(
+                    uin=sender,
+                    name="特殊头衔信息",
+                    content=[Comp.Plain(titles_text)]
+                ),
+                Comp.Node(
+                    uin=sender,
+                    name="特殊头衔占比",
+                    content=[Comp.Plain(ratio_text)]
+                ),
+            ],
             uin=sender,
             name="特殊头衔信息",
         ),
