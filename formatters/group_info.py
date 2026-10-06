@@ -9,6 +9,9 @@ import time
 import astrbot.api.message_components as Comp
 from .sanitize import sanitize_text
 
+# 当前群主加入时间与建群时间的容差（秒）：超过则判定该群被转让过
+_FOUNDER_TOLERANCE = 60
+
 
 # GB2312 一级/二级汉字按拼音排序的区位码区间 -> 拼音首字母
 # 用于在不引入第三方依赖的前提下计算汉字拼音首字母
@@ -88,8 +91,14 @@ def build_group_info_nodes(
     admin_count = 0
     earliest_join_time = None
     earliest_member = None
+    second_earliest_join_time = None
+    second_earliest_member = None
     latest_sent_time = None
     latest_member = None
+    earliest_sent_time = None
+    earliest_sent_member = None
+    latest_join_time = None
+    latest_join_member = None
     highest_level = None
     highest_level_member = None
     owner_member = None
@@ -104,11 +113,22 @@ def build_group_info_nodes(
             owner_member = member
 
         join_time = member.get("join_time") or 0
-        if join_time and (
-            earliest_join_time is None or join_time < earliest_join_time
-        ):
-            earliest_join_time = join_time
-            earliest_member = member
+        if join_time:
+            if earliest_join_time is None or join_time < earliest_join_time:
+                # 新最早加入者：原最早者顺延为「第二个加入」
+                second_earliest_join_time = earliest_join_time
+                second_earliest_member = earliest_member
+                earliest_join_time = join_time
+                earliest_member = member
+            elif (
+                second_earliest_join_time is None
+                or join_time < second_earliest_join_time
+            ):
+                second_earliest_join_time = join_time
+                second_earliest_member = member
+            if latest_join_time is None or join_time > latest_join_time:
+                latest_join_time = join_time
+                latest_join_member = member
 
         last_sent_time = member.get("last_sent_time") or 0
         if last_sent_time and (
@@ -116,6 +136,11 @@ def build_group_info_nodes(
         ):
             latest_sent_time = last_sent_time
             latest_member = member
+        if last_sent_time and (
+            earliest_sent_time is None or last_sent_time < earliest_sent_time
+        ):
+            earliest_sent_time = last_sent_time
+            earliest_sent_member = member
 
         level = member.get("level") or 0
         if isinstance(level, str):
@@ -160,6 +185,88 @@ def build_group_info_nodes(
             return ''
         return m.get('user_id') or ''
 
+    # ---- 建群时间与「首任群主」（判定群主是否被转让）----
+    create_time = int(group_info.get("group_create_time") or 0)
+    # 建群时间：优先使用群信息里的真实建群时间，缺失时回退到最早加入时间
+    build_time = create_time or earliest_join_time
+
+    # 与建群时间最接近的成员视为「首任群主 / 建群人」
+    founder_member = None
+    if create_time:
+        candidates = [
+            m for m in member_list if (m.get("join_time") or 0)
+        ]
+        if candidates:
+            closest = min(
+                candidates,
+                key=lambda m: abs(int(m.get("join_time")) - create_time),
+            )
+            if (
+                abs(int(closest.get("join_time")) - create_time)
+                <= _FOUNDER_TOLERANCE
+            ):
+                founder_member = closest
+
+    owner_join_time = (
+        int(owner_member.get("join_time") or 0)
+        if isinstance(owner_member, dict) else 0
+    )
+    # 当前群主的加入时间与建群时间对不上 → 该群被转让过
+    transferred = bool(
+        create_time
+        and owner_join_time
+        and abs(owner_join_time - create_time) > _FOUNDER_TOLERANCE
+    )
+
+    transfer_text = ""
+    if transferred:
+        transfer_text += "---群转让信息---\n"
+        if founder_member is not None:
+            f_nickname = _flat(
+                sanitize_text(founder_member.get('nickname') or '')
+            )
+            f_card = _flat(sanitize_text(founder_member.get('card') or ''))
+            f_level = founder_member.get('level')
+            f_qq_level = founder_member.get('qq_level')
+            f_last_sent = founder_member.get('last_sent_time') or 0
+            f_user_id = _fmt_id(founder_member)
+            transfer_text += (
+                f"首任群主: {f_nickname}\n"
+            )
+            # 权限：群主 / 管理员 / 群员
+            _role_text = {
+                'owner': '群主',
+                'admin': '管理员',
+                'member': '群员',
+            }.get(founder_member.get('role'))
+            if f_user_id:
+                transfer_text += f"QQ号: {f_user_id}\n"
+            if _role_text:
+                transfer_text += f"权限: {_role_text}\n"
+            if f_level:
+                transfer_text += f"群等级: LV-{f_level}\n"
+            if f_qq_level:
+                transfer_text += f"QQ等级: {f_qq_level}\n"
+            if f_card:
+                transfer_text += f"群内名称: {f_card}\n"
+            if f_last_sent:
+                transfer_text += (
+                    "最后发言: "
+                    + time.strftime(
+                        '%Y-%m-%d %H:%M:%S',
+                        time.localtime(int(f_last_sent)),
+                    )
+                    + "\n"
+                )
+        else:
+            transfer_text += "首任群主: 未知\n"
+            transfer_text += "ps: 首任群主的判断 是根据加群时间判断的 若首任群主退群 则无法获取到首任群主信息\n"
+    transfer_text = Comp.Node(
+                    uin=sender,
+                    name=f"群转让信息",
+                    content=[Comp.Plain(transfer_text)]
+                ) if transfer_text else None
+
     # 特殊头衔按头衔拼音首字母排序
     special_titles.sort(key=lambda item: _title_sort_key(item[0]))
     titles_content = (
@@ -175,7 +282,8 @@ def build_group_info_nodes(
     )
     ratio_content = (
         '\n'.join(
-            f'{title} 占比 {count / total_titled * 100:.1f}%'
+            f'{title} 占比 {count / total_titled * 100:.1f}% '
+            f'({total_titled}/{count})'
             for title, count in ratio_items
         )
         if ratio_items and total_titled else '无特殊头衔'
@@ -187,12 +295,16 @@ def build_group_info_nodes(
         f"名称: {group_name}\n"
         f"群号: {group_id}\n"
         f"群主: {_fmt_name(owner_member)}({_fmt_id(owner_member)})\n"
-        f"最早加入: {_fmt_name(earliest_member)}({_fmt_id(earliest_member)}) "
-        f"加入时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(earliest_join_time))) if earliest_join_time else '未知'}\n"
+        f"建群时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(build_time))) if build_time else '未知'}\n"
+        f"最早加入: {_fmt_name(second_earliest_member)}({_fmt_id(second_earliest_member)}) "
+        f"加入时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(second_earliest_join_time))) if second_earliest_join_time else '未知'}\n"
+        f"最后加入: {_fmt_name(latest_join_member)}({_fmt_id(latest_join_member)}) "
+        f"加入时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(latest_join_time))) if latest_join_time else '未知'}\n"
+        f"最早发言: {_fmt_name(earliest_sent_member)}({_fmt_id(earliest_sent_member)}) "
+        f"发言时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(earliest_sent_time))) if earliest_sent_time else '未知'}\n"
         f"最后发言: {_fmt_name(latest_member)}({_fmt_id(latest_member)}) "
         f"发言时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(latest_sent_time))) if latest_sent_time else '未知'}\n"
         f"最高等级: {_fmt_name(highest_level_member)}({_fmt_id(highest_level_member)}) LV-{highest_level}\n"
-        f"备注: {group_remark if group_remark else '无'}\n"
         f"总成员数量: {member_count}/{max_member_count}\n"
         f"管理员数量: {admin_count}\n"
         f"普通成员数量: {member_count - admin_count}\n"
@@ -209,13 +321,20 @@ def build_group_info_nodes(
         f"{ratio_content}\n"
     )
 
+    # ---- 条目 1 内容：群基本信息 +（可选）群转让信息 ----
+    basic_content = [
+        Comp.Node(
+            uin=sender,
+            name=f"群聊基本信息",
+            content=[Comp.Plain(group_text)]
+        ),
+    ]
+    if transfer_text:
+        basic_content.append(transfer_text)
+
     return [
         Comp.Node(
-            Comp.Node(
-                uin=sender,
-                name=f"群聊基本信息",
-                content=[Comp.Plain(group_text)]
-            ),
+            content=basic_content,
             uin=sender,
             name=f"群聊基本信息",
         ),
