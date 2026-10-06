@@ -31,7 +31,7 @@ def build_personal_text(user_info: dict, user_id: str,
                         last_update_str: str) -> str:
     """构造用户个人基本信息的文本"""
     # 清洗用户可控字段，防止合并转发因特殊字符打不开
-    _SPECIAL = '_特殊字符'
+    _SPECIAL = user_info.get('user_id')
     long_nick = _f(user_info, 'longNick', 'long_nick', default=_SPECIAL)
     country = _f(user_info, 'country', default=_SPECIAL)
     province = _f(user_info, 'province', default=_SPECIAL)
