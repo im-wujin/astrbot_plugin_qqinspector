@@ -59,6 +59,11 @@ def _title_sort_key(title: str) -> str:
     return ''.join(_pinyin_initial(ch) for ch in title or '')
 
 
+def _flat(text: str) -> str:
+    """把可能含换行的显示文本压成单行，避免合并转发中出现空行。"""
+    return ' '.join((text or '').split())
+
+
 def build_group_info_nodes(
     group_id: str,
     group_info: dict,
@@ -122,9 +127,9 @@ def build_group_info_nodes(
             highest_level = level
             highest_level_member = member
 
-        special_title = sanitize_text(member.get("title") or "")
+        special_title = _flat(sanitize_text(member.get("title") or ""))
         if special_title:
-            user_name = (
+            user_name = _flat(
                 sanitize_text(member.get('card') or '')
                 or sanitize_text(member.get('nickname') or '')
                 or ''
@@ -143,11 +148,12 @@ def build_group_info_nodes(
     def _fmt_name(m):
         if not isinstance(m, dict):
             return '未知'
-        return (
+        name = (
             sanitize_text(m.get('card') or '')
             or sanitize_text(m.get('nickname') or '')
             or '未知'
         )
+        return _flat(name) or '未知'
 
     def _fmt_id(m):
         if not isinstance(m, dict):
