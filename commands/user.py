@@ -72,6 +72,8 @@ async def handle_user_info(
     # ---- 从缓存获取每个群的成员信息（批量查询） ----
     group_nodes = []
     need_refresh_gids = []
+    # 群内角色排序优先级：群主 > 管理员 > 成员
+    role_order = {'owner': 0, 'admin': 1, 'member': 2}
 
     members_map = cache.get_group_members_batch(group_id_list)
     for gid in group_id_list:
@@ -97,11 +99,18 @@ async def handle_user_info(
         group_text = build_member_text(
             member_info, group_name, gid, cached_info
         )
-        group_nodes.append(Comp.Node(
-            uin=sender,
-            name="所在群聊信息",
-            content=[Comp.Plain(group_text)]
+        group_nodes.append((
+            role_order.get(member_info.get('role'), 3),
+            Comp.Node(
+                uin=sender,
+                name="所在群聊信息",
+                content=[Comp.Plain(group_text)]
+            )
         ))
+
+    # ---- 按角色排序：群主 > 管理员 > 成员 ----
+    group_nodes.sort(key=lambda item: item[0])
+    group_nodes = [node for _, node in group_nodes]
 
     # ---- 处理未缓存的群 ----
     if need_refresh_gids:

@@ -54,6 +54,9 @@ class OverlapAnalyzer:
             if members is None:
                 continue
             for m in members:
+                # 忽略 QQ 机器人（如 Q群管家），避免污染重合度统计
+                if m.get('is_robot'):
+                    continue
                 qq = str(m.get('user_id'))
                 if not qq or qq == str(target_user_id):
                     continue
